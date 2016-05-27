@@ -7,15 +7,13 @@ type Importer interface {
 	Poll(Worker)
 }
 
-// Worker describes a function for handling the import of a single file.
-type Worker interface {
-	// Handle runs an import.
-	Handle(WorkItem)
-}
+// Worker describes a function for handling the import of a single item.
+type Worker func(WorkItem) error
 
 // WorkItem represents an item of work for an importer.
 // These may come from an (S)FTP directory, queue, or other transport.
 type WorkItem interface {
+
 	// Content gets the content of the work item.
 	Content() (string, error)
 
@@ -24,16 +22,16 @@ type WorkItem interface {
 	Start()
 
 	// Complete marks a work item as complete.
-	// Further processing will be prevented.
-	// The item may be retained for archive purposes.
+	// Further processing must be prevented.
+	// The item may be retained for archival purposes.
 	Complete(msg string)
 
 	// Fail indicates that work has not been successful, but the error may be recoverable.
 	// The item should be retained for retries, and the number of retries should be recorded if necessary.
 	Fail(msg string)
 
-	// Terminate indicates that no further work can be done on a work item.
-	// Further processing will be prevented.
+	// Terminate indicates that work has not been successful, and that no further work can be done with the item.
+	// Further processing must be prevented.
 	// The item should be retained for review.
 	Terminate(msg string)
 }

@@ -6,7 +6,7 @@ type dummyImporter int
 
 func (dummyImporter) Poll(w Worker) {
 	wi := dummyWorkItem(1)
-	w.Handle(wi)
+	w(wi)
 	return
 }
 
@@ -37,20 +37,18 @@ func (dummyWorkItem) Terminate(msg string) {
 
 }
 
-type dummyWorker struct {
-	Called bool
-}
+var workerCalled bool
 
-func (w *dummyWorker) Handle(WorkItem) {
-	w.Called = true
+func dummyWorker(WorkItem) error {
+	workerCalled = true
+	return nil
 }
 
 func TestCanPoll(t *testing.T) {
 	imp := dummyImporter(1)
-	w := new(dummyWorker)
-	imp.Poll(w)
+	imp.Poll(dummyWorker)
 
-	if !w.Called {
+	if !workerCalled {
 		t.Errorf("Should have called the worker. Didn't.")
 	}
 }

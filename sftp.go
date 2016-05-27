@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	ssftp "github.com/itsoneiota/ssftp-go"
-	"github.com/pkg/sftp"
 )
 
 const (
@@ -29,7 +28,7 @@ func (i *SFTPImporter) Poll(w Worker) {
 	// TODO: Mutex access to this function.
 	items := i.findIncoming()
 	for _, item := range items {
-		w.Handle(item)
+		w(item)
 	}
 }
 
@@ -44,7 +43,7 @@ func (i *SFTPImporter) findIncoming() []WorkItem {
 		if w.Stat().IsDir() {
 			continue
 		}
-		item, err := i.newSFTPFile(w.Path())
+		item, err := i.newFile(w.Path(), w.Stat().Name())
 		if err != nil {
 			continue
 		}
@@ -53,16 +52,48 @@ func (i *SFTPImporter) findIncoming() []WorkItem {
 	return items
 }
 
-// NewSFTPFile returns an SFTPFile
-func (i *SFTPImporter) newSFTPFile(path string) (*SFTPFile, error) {
-	file, err := i.client.Open(path)
+func (i *SFTPImporter) moveToProcessing(f *SFTPFile) {
+	i.moveTo(f, i.processing)
+}
+
+func (i *SFTPImporter) moveToCompleted(f *SFTPFile) {
+	i.moveTo(f, i.completed)
+}
+
+func (i *SFTPImporter) moveToTerminated(f *SFTPFile) {
+	i.moveTo(f, i.terminated)
+}
+
+func (i *SFTPImporter) moveTo(f *SFTPFile, dst string) {
+	newPath := dst + "/" + f.name
+	i.client.Rename(f.path, newPath)
+	f.path = newPath
+}
+
+// Content gets the string content of the file.
+func (i *SFTPImporter) content(f *SFTPFile) (string, error) {
+	file, err := i.client.Open(f.path)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	bytes := make([]byte, info.Size())
+
+	file.Read(bytes)
+	str := string(bytes)
+	return str, nil
+}
+
+// newFile returns an SFTPFile
+func (i *SFTPImporter) newFile(path string, name string) (*SFTPFile, error) {
 	return &SFTPFile{
-		client: i.client,
-		path:   path,
-		file:   file,
+		importer: i,
+		path:     path,
+		name:     name,
 	}, nil
 }
 
@@ -79,41 +110,32 @@ func NewImporter(c *ssftp.Client, dir string) Importer {
 
 // SFTPFile represents a file in an SFTP location.
 type SFTPFile struct {
-	client *ssftp.Client
-	file   *sftp.File
-	path   string
+	importer *SFTPImporter
+	path     string
+	name     string
 }
 
 // Content gets the string content of the file.
 func (f *SFTPFile) Content() (string, error) {
-	info, err := f.file.Stat()
-	if err != nil {
-		return "", err
-	}
-	
-	bytes := make([]byte, info.Size())
-	// info.Size()
-	f.file.Read(bytes)
-	str := string(bytes)
-	return str, nil
+	return f.importer.content(f)
 }
 
 // Start moves a file to the 'processing' directory.
 func (f *SFTPFile) Start() {
-	// TODO: Move file to processing.
+	f.importer.moveToProcessing(f)
 }
 
 // Complete moves a file to the 'archive' directory.
 func (f *SFTPFile) Complete(msg string) {
-	// TODO: Move file to completed.
+	f.importer.moveToCompleted(f)
 }
 
 // Fail records a failure, for a later retry attempt.
 func (f *SFTPFile) Fail(msg string) {
-	// TODO: Move file to failed location.
+	// TODO: What do we do here? Move back to incoming?
 }
 
 // Terminate moves the file to the 'terminal' directory.
 func (f *SFTPFile) Terminate(msg string) {
-	// TODO:
+	f.importer.moveToTerminated(f)
 }

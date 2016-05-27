@@ -3,8 +3,9 @@ package importer
 import (
 	"fmt"
 
-	"github.com/itsoneiota/ssftp-go"
 	"testing"
+
+	"github.com/itsoneiota/ssftp-go"
 )
 
 func TestCanFindFile(t *testing.T) {
@@ -12,13 +13,21 @@ func TestCanFindFile(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	w := &echoWorker{}
 	i := NewImporter(c, "/sftpdata/importStuff")
-	i.Poll(w)
+	i.Poll(work)
 }
 
-type echoWorker struct{}
-
-func (*echoWorker) Handle(i WorkItem) {
-	fmt.Println(i.Content())
+func work(i WorkItem) error {
+	fmt.Println("Here we go...")
+	i.Start()
+	content, _ := i.Content()
+	fmt.Printf("workItem content: %s", content)
+	if len(content) > 10 {
+		fmt.Printf("Failing string %s", content)
+		i.Terminate("Too long.")
+	} else {
+		fmt.Println("done")
+		i.Complete("Completed successfully.")
+	}
+	return nil
 }
