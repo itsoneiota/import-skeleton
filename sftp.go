@@ -15,11 +15,12 @@ const (
 
 // SFTPImporter represents an SFTP importer.
 // We favour convention over configuration. An importer is rooted at a directory, which must have the following structure:
-// - myDir // Passed to NewImporter()
-//     - incoming   // New, unprocessed files.
-//     - processing // Files being processed.
-//     - completed  // Successfully completed files.
-//     - terminated // Files with unrecoverable failures.
+//
+//     .
+//     ├── completed   // Successfully completed files.
+//     ├── incoming    // New, unprocessed files.
+//     ├── processing  // Files being processed.
+//     └── terminated  // Files with unrecoverable failures.
 type SFTPImporter struct {
 	client     *ssftp.Client
 	worker     Worker
