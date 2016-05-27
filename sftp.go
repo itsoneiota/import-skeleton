@@ -14,6 +14,12 @@ const (
 )
 
 // SFTPImporter represents an SFTP importer.
+// We favour convention over configuration. An importer is rooted at a directory, which must have the following structure:
+// - myDir // Passed to NewImporter()
+//     - incoming   // New, unprocessed files.
+//     - processing // Files being processed.
+//     - completed  // Successfully completed files.
+//     - terminated // Files with unrecoverable failures.
 type SFTPImporter struct {
 	client     *ssftp.Client
 	worker     Worker
@@ -88,7 +94,6 @@ func (i *SFTPImporter) content(f *SFTPFile) (string, error) {
 	return str, nil
 }
 
-// newFile returns an SFTPFile
 func (i *SFTPImporter) newFile(path string, name string) (*SFTPFile, error) {
 	return &SFTPFile{
 		importer: i,

@@ -1,3 +1,4 @@
+// Package importer provides a framework for import processing.
 package importer
 
 // Importer describes a generic importer.

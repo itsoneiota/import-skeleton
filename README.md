@@ -1,2 +1,2 @@
-# sftp-import-skeleton
-Framework for imports using SFTP.
+# Import Skeleton
+The bare bones of an importer.
