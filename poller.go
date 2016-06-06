@@ -13,12 +13,10 @@ func NewPoller(i Importer, w Worker) *Poller {
 	return &Poller{i, w}
 }
 
-// Start starts the poller polling in a separate goroutine.
+// Start starts the poller polling. Blocking call.
 func (p *Poller) Start(interval time.Duration) {
-	go func() {
-		for {
-			p.i.Poll(p.w)
-			time.Sleep(interval)
-		}
-	}()
+	for {
+		p.i.Poll(p.w)
+		time.Sleep(interval)
+	}
 }
