@@ -3,6 +3,7 @@ package importer
 import (
 	"fmt"
 
+	"github.com/itsoneiota/metrics"
 	ssftp "github.com/itsoneiota/ssftp-go"
 )
 
@@ -24,6 +25,7 @@ const (
 type SFTPImporter struct {
 	client     *ssftp.Client
 	worker     Worker
+	metrics    *metrics.MetricPublisher
 	incoming   string
 	processing string
 	completed  string
@@ -34,6 +36,7 @@ type SFTPImporter struct {
 func (i *SFTPImporter) Poll(w Worker) {
 	// TODO: Mutex access to this function.
 	items := i.findIncoming()
+	i.metrics.Client.Inc("ItemsToImport", 1)
 	for _, item := range items {
 		w(item)
 	}
@@ -104,9 +107,10 @@ func (i *SFTPImporter) newFile(path string, name string) (*SFTPFile, error) {
 }
 
 // NewImporter returns a new importer using the given SFTP Client.
-func NewImporter(c *ssftp.Client, dir string) Importer {
+func NewImporter(c *ssftp.Client, dir string, m *metrics.MetricPublisher) Importer {
 	return &SFTPImporter{
 		client:     c,
+		metrics:    m,
 		incoming:   fmt.Sprintf("%s/%s", dir, incoming),
 		processing: fmt.Sprintf("%s/%s", dir, processing),
 		completed:  fmt.Sprintf("%s/%s", dir, completed),
