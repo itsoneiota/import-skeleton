@@ -48,7 +48,7 @@ func (i *SFTPImporter) findIncoming() []WorkItem {
 	for w.Step() {
 		err := w.Err()
 		if err != nil {
-			fmt.Printf("err: %s\r\n", err)
+			fmt.Printf("err: %s, path: %s\r\n", err, w.Path())
 			continue
 		}
 		if w.Stat().IsDir() {
