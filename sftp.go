@@ -140,14 +140,18 @@ func (f *SFTPFile) Start() {
 // Complete moves a file to the 'archive' directory.
 func (f *SFTPFile) Complete(msg string) {
 	f.importer.moveToCompleted(f)
+	f.importer.metrics.Client.Inc("FileComplete", 1)
+
 }
 
 // Fail records a failure, for a later retry attempt.
 func (f *SFTPFile) Fail(msg string) {
+	f.importer.metrics.Client.Inc("FileFailure", 1)
 	// TODO: What do we do here? Move back to incoming?
 }
 
 // Terminate moves the file to the 'terminal' directory.
 func (f *SFTPFile) Terminate(msg string) {
 	f.importer.moveToTerminated(f)
+	f.importer.metrics.Client.Inc("FileTerminal", 1)
 }
