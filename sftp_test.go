@@ -5,6 +5,7 @@ import (
 
 	"testing"
 
+	"github.com/itsoneiota/metrics"
 	"github.com/itsoneiota/ssftp-go"
 )
 
@@ -13,7 +14,9 @@ func TestCanFindFile(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	i := NewImporter(c, "/sftpdata/importStuff")
+	mmc := metrics.NewMockMetricsClient()
+	mp := metrics.NewMetricPublisher(mmc)
+	i := NewImporter(c, "/sftpdata/importStuff", mp)
 	i.Poll(work)
 }
 

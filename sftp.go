@@ -36,8 +36,7 @@ type SFTPImporter struct {
 func (i *SFTPImporter) Poll(w Worker) {
 	// TODO: Mutex access to this function.
 	items := i.findIncoming()
-	i.metrics.Client.Inc("ItemsToImport", 1)
-	fmt.Println("Iterms To Import: " + string(len(items)))
+	fmt.Println("Items To Import: " + string(len(items)))
 	for _, item := range items {
 		w(item)
 	}
@@ -59,6 +58,7 @@ func (i *SFTPImporter) findIncoming() []WorkItem {
 			continue
 		}
 		items = append(items, item)
+		i.metrics.Client.Inc("IncomingItems", 1)
 	}
 	return items
 }
