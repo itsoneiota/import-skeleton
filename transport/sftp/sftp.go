@@ -1,8 +1,9 @@
-package importer
+package sftp
 
 import (
 	"fmt"
 
+	skeleton "github.com/itsoneiota/import-skeleton"
 	"github.com/itsoneiota/metrics"
 	ssftp "github.com/itsoneiota/ssftp-go"
 )
@@ -14,7 +15,7 @@ const (
 	terminated = "terminated" // Directory for files with unrecoverable errors.
 )
 
-// SFTPImporter represents an SFTP importer.
+// Importer represents an SFTP importer.
 // We favour convention over configuration. An importer is rooted at a directory, which must have the following structure:
 //
 //     .
@@ -22,9 +23,9 @@ const (
 //     ├── incoming    // New, unprocessed files.
 //     ├── processing  // Files being processed.
 //     └── terminated  // Files with unrecoverable failures.
-type SFTPImporter struct {
+type Importer struct {
 	client     *ssftp.Client
-	worker     Worker
+	worker     skeleton.Worker
 	metrics    *metrics.MetricPublisher
 	incoming   string
 	processing string
@@ -33,7 +34,7 @@ type SFTPImporter struct {
 }
 
 // Poll finds files ready for import.
-func (i *SFTPImporter) Poll(w Worker) {
+func (i *Importer) Poll(w skeleton.Worker) {
 	// TODO: Mutex access to this function.
 	items := i.findIncoming()
 	fmt.Printf("Items To Import: %d\r\n", len(items))
@@ -42,9 +43,9 @@ func (i *SFTPImporter) Poll(w Worker) {
 	}
 }
 
-func (i *SFTPImporter) findIncoming() []WorkItem {
+func (i *Importer) findIncoming() []skeleton.WorkItem {
 	w := i.client.Walk(i.incoming)
-	var items []WorkItem
+	var items []skeleton.WorkItem
 	for w.Step() {
 		err := w.Err()
 		if err != nil {
@@ -64,26 +65,26 @@ func (i *SFTPImporter) findIncoming() []WorkItem {
 	return items
 }
 
-func (i *SFTPImporter) moveToProcessing(f *SFTPFile) {
+func (i *Importer) moveToProcessing(f *File) {
 	i.moveTo(f, i.processing)
 }
 
-func (i *SFTPImporter) moveToCompleted(f *SFTPFile) {
+func (i *Importer) moveToCompleted(f *File) {
 	i.moveTo(f, i.completed)
 }
 
-func (i *SFTPImporter) moveToTerminated(f *SFTPFile) {
+func (i *Importer) moveToTerminated(f *File) {
 	i.moveTo(f, i.terminated)
 }
 
-func (i *SFTPImporter) moveTo(f *SFTPFile, dst string) {
+func (i *Importer) moveTo(f *File, dst string) {
 	newPath := dst + "/" + f.name
 	i.client.Rename(f.path, newPath)
 	f.path = newPath
 }
 
 // Content gets the string content of the file.
-func (i *SFTPImporter) content(f *SFTPFile) (string, error) {
+func (i *Importer) content(f *File) (string, error) {
 	file, err := i.client.Open(f.path)
 	if err != nil {
 		return "", err
@@ -100,8 +101,8 @@ func (i *SFTPImporter) content(f *SFTPFile) (string, error) {
 	return str, nil
 }
 
-func (i *SFTPImporter) newFile(path string, name string) (*SFTPFile, error) {
-	return &SFTPFile{
+func (i *Importer) newFile(path string, name string) (*File, error) {
+	return &File{
 		importer: i,
 		path:     path,
 		name:     name,
@@ -109,8 +110,8 @@ func (i *SFTPImporter) newFile(path string, name string) (*SFTPFile, error) {
 }
 
 // NewImporter returns a new importer using the given SFTP Client.
-func NewImporter(c *ssftp.Client, dir string, m *metrics.MetricPublisher) Importer {
-	return &SFTPImporter{
+func NewImporter(c *ssftp.Client, dir string, m *metrics.MetricPublisher) skeleton.Importer {
+	return &Importer{
 		client:     c,
 		metrics:    m,
 		incoming:   fmt.Sprintf("%s/%s", dir, incoming),
@@ -120,38 +121,38 @@ func NewImporter(c *ssftp.Client, dir string, m *metrics.MetricPublisher) Import
 	}
 }
 
-// SFTPFile represents a file in an SFTP location.
-type SFTPFile struct {
-	importer *SFTPImporter
+// File represents a file in an SFTP location.
+type File struct {
+	importer *Importer
 	path     string
 	name     string
 }
 
 // Content gets the string content of the file.
-func (f *SFTPFile) Content() (string, error) {
+func (f *File) Content() (string, error) {
 	return f.importer.content(f)
 }
 
 // Start moves a file to the 'processing' directory.
-func (f *SFTPFile) Start() {
+func (f *File) Start() {
 	f.importer.moveToProcessing(f)
 }
 
 // Complete moves a file to the 'archive' directory.
-func (f *SFTPFile) Complete(msg string) {
+func (f *File) Complete(msg string) {
 	f.importer.moveToCompleted(f)
 	f.importer.metrics.Client.Inc("FileComplete", 1)
 
 }
 
 // Fail records a failure, for a later retry attempt.
-func (f *SFTPFile) Fail(msg string) {
+func (f *File) Fail(msg string) {
 	f.importer.metrics.Client.Inc("FileFailure", 1)
 	// TODO: What do we do here? Move back to incoming?
 }
 
 // Terminate moves the file to the 'terminal' directory.
-func (f *SFTPFile) Terminate(msg string) {
+func (f *File) Terminate(msg string) {
 	f.importer.moveToTerminated(f)
 	f.importer.metrics.Client.Inc("FileTerminal", 1)
 }

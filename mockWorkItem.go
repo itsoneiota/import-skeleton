@@ -1,8 +1,11 @@
 package importer
 
 const (
-	fresh  = "FRESH"
-	failed = "FAILED"
+	fresh      = "FRESH"
+	failed     = "FAILED"
+	processing = "PROCESSING"
+	completed  = "COMPLETED"
+	terminated = "TERMINATED"
 )
 
 // MockWorkItem is a simple work item for use in tests.
